@@ -13,8 +13,8 @@ type CrsMode int
 const CRS_VERSION = "3.4"
 
 const (
-	MODE_SCORING        CrsMode = 1
-	MODE_SELF_CONTAINED CrsMode = 2
+	MODE_SCORING        CrsMode = 0
+	MODE_SELF_CONTAINED CrsMode = 1
 )
 
 type auditEngine struct {
@@ -29,6 +29,8 @@ type Policy struct {
 	mimes      []string
 	audit      []auditEngine
 	auditParts *AuditLogParts
+	prepend    []byte
+	vars       map[string]string
 
 	cachepath string
 }
@@ -72,12 +74,8 @@ func (c *Policy) AddResponseMime(mime string) {
 	c.mimes = append(c.mimes, mime)
 }
 
-func (c *Policy) AllowInterruption(it bool) {
-	if it {
-		c.directives["SecRuleEngine"] = "On"
-	} else {
-		c.directives["SecRuleEngine"] = "DetectionOnly"
-	}
+func (c *Policy) AllowInterruption() {
+	c.directives["SecRuleEngine"] = "On"
 }
 
 func (c *Policy) AddAuditEngine(engine string, args string, pattern string) {
@@ -96,8 +94,28 @@ func (c *Policy) AuditLogParts() *AuditLogParts {
 	return c.auditParts
 }
 
+func (c *Policy) Prepend(file string) error {
+	data, err := os.ReadFile(file)
+	c.prepend = data
+	return err
+}
+
+func (c *Policy) AddVar(key string, value string) {
+	c.vars[key] = value
+}
+
 func (c *Policy) Build() error {
 	bf := strings.Builder{}
+	if len(c.vars) > 0 {
+		vars := `SecAction "id:1,pass,nolog`
+		for k, v := range c.vars {
+			vars += fmt.Sprintf(",setvar:'tx.%s=%s'", k, v)
+		}
+		vars += "\"\n"
+		bf.WriteString(vars)
+	}
+	bf.Write(c.prepend)
+	bf.WriteByte('\n')
 	for key, value := range c.directives {
 		bf.WriteString(fmt.Sprintf("%s %s\n", key, value))
 	}
@@ -119,7 +137,7 @@ func (c *Policy) Build() error {
 	if c.mode == MODE_SCORING {
 		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,pass\"\nSecDefaultAction \"phase:2,log,auditlog,pass\"")
 	} else if c.mode == MODE_SELF_CONTAINED {
-		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,deny,status:403\"\n SecDefaultAction \"phase:2,log,auditlog,deny,status:403\"")
+		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,deny,status:403\"\n SecDefaultAction \"phase:2,log,auditlog,deny,status:403\"\n")
 	}
 	bf.WriteString("SecAction \"id:900990,phase:1,nolog,pass,t:none,setvar:tx.crs_setup_version=340\"\n")
 	//TODO add more default actions
@@ -132,6 +150,7 @@ func NewPolicy(cachepath string) *Policy {
 		"SecUnicodeMap":        "20127",
 		"SecCookieFormat":      "0",
 		"SecArgumentSeparator": "&",
+		"SecRuleEngine":        "DetectionOnly",
 	}
 	ap := NewAuditLogParts()
 	ap.EnableAll()
@@ -139,5 +158,6 @@ func NewPolicy(cachepath string) *Policy {
 		directives: defaults,
 		auditParts: ap,
 		cachepath:  cachepath,
+		vars:       map[string]string{},
 	}
 }

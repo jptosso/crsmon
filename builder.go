@@ -65,6 +65,9 @@ func downloadCrs(version string, dest string) error {
 	rulespath := path.Join(dir, fmt.Sprintf("coreruleset-%s", version[1:]), "rules/")
 	fmt.Printf("[CRS] Setting rule path: %s\n", rulespath)
 	// we build the CRS file
+	//files := []string{rulespath + "/../crs-setup.conf.example"}
+	//f2, _ := filepath.Glob(rulespath + "/*.conf")
+	//files = append(files, f2...)
 	files, _ := filepath.Glob(rulespath + "/*.conf")
 	fmt.Println("[CRS] Merging...")
 	if err := mergefiles(files, dest); err != nil {
