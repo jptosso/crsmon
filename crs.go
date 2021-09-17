@@ -106,14 +106,12 @@ func (c *Policy) AddVar(key string, value string) {
 
 func (c *Policy) Build() error {
 	bf := strings.Builder{}
-	if len(c.vars) > 0 {
-		vars := `SecAction "id:1,pass,nolog`
-		for k, v := range c.vars {
-			vars += fmt.Sprintf(",setvar:'tx.%s=%s'", k, v)
-		}
-		vars += "\"\n"
-		bf.WriteString(vars)
+	vars := `SecAction "id:900990,pass,nolog,setvar:tx.crs_setup_version=340`
+	for k, v := range c.vars {
+		vars += fmt.Sprintf(",setvar:tx.%s=%s", k, v)
 	}
+	vars += "\"\n"
+	bf.WriteString(vars)
 	bf.Write(c.prepend)
 	bf.WriteByte('\n')
 	for key, value := range c.directives {
@@ -139,7 +137,6 @@ func (c *Policy) Build() error {
 	} else if c.mode == MODE_SELF_CONTAINED {
 		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,deny,status:403\"\n SecDefaultAction \"phase:2,log,auditlog,deny,status:403\"\n")
 	}
-	bf.WriteString("SecAction \"id:900990,phase:1,nolog,pass,t:none,setvar:tx.crs_setup_version=340\"\n")
 	//TODO add more default actions
 	data = append([]byte(bf.String()), data...)
 	return ioutil.WriteFile(file, data, 0644)
