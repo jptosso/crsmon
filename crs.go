@@ -135,7 +135,7 @@ func (c *Policy) Build() error {
 	os.Remove(file)
 	bf.WriteByte('\n')
 	if c.mode == MODE_SCORING {
-		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,pass\"\nSecDefaultAction \"phase:2,log,auditlog,pass\"")
+		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,pass\"\nSecDefaultAction \"phase:2,log,auditlog,pass\"\n")
 	} else if c.mode == MODE_SELF_CONTAINED {
 		bf.WriteString("SecDefaultAction \"phase:1,log,auditlog,deny,status:403\"\n SecDefaultAction \"phase:2,log,auditlog,deny,status:403\"\n")
 	}
